@@ -55,8 +55,13 @@ def write_entry(line: str) -> str:
             pass
         raise
     with open(target, "rb") as handle:
-        if handle.read() != payload:
-            raise ValueError("entry.txt does not match the line")
+        written = handle.read()
+    if written != payload:
+        raise ValueError("entry.txt does not match the line")
+    # Re-validate the artifact itself, not just the constant: the bytes
+    # on disk must still decode as UTF-8 and pass the same gate the
+    # scorer applies, so a bad write can never slip through silently.
+    check_line(written.decode("utf-8"))
     return target
 
 
@@ -64,10 +69,11 @@ def main() -> int:
     try:
         line = check_line(LINE)
         target = write_entry(line)
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, UnicodeDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     print(f"wrote {len(line)} chars to {target}")
+    print(line)
     return 0
 
 
